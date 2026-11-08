@@ -1,0 +1,5 @@
+{
+    "name": "git-checkpoint-manager",
+    "description": "Crea un commit semántico en git una vez que los endpoints superan las pruebas de humo.",
+    "command": "git add -A && git commit -m '{MESSAGE}'"
+}

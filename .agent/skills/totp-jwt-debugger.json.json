@@ -1,0 +1,5 @@
+{
+    "name": "totp-jwt-debugger",
+    "description": "Calcula el código TOTP actual dado un secreto Base32 o decodifica el payload de un token JWT.",
+    "command": "node -e \"const { generate } = require('otplib'); generate({ secret: '{SECRET}' }).then(console.log);\""
+}
