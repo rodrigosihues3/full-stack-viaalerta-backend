@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import { pool } from './src/config/db.js';
 import authRoutes from './src/routes/auth.routes.js';
+import entidadesRoutes from './src/routes/entidades.routes.js';
+import incidentesRoutes from './src/routes/incidentes.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,6 +14,12 @@ app.use(express.json());
 // Rutas de autenticación
 app.use('/api/auth', authRoutes);
 
+// Rutas de entidades y catálogo
+app.use('/api/entidades', entidadesRoutes);
+
+// Rutas de incidentes
+app.use('/api/incidentes', incidentesRoutes);
+
 app.get('/health', async (req, res) => {
     try {
         const result = await pool.query('SELECT NOW()');
@@ -21,6 +29,11 @@ app.get('/health', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`Servidor HTTP activo en http://localhost:${PORT}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+    app.listen(PORT, () => {
+        console.log(`Servidor HTTP activo en http://localhost:${PORT}`);
+    });
+}
+
+export { app };
+export default app;
