@@ -7,6 +7,7 @@
     "start": "node --env-file=.env server.js",
     "dev": "node --watch --env-file=.env server.js",
     "test:fase3": "node --env-file=.env scripts/smoke-test-fase3.js",
+    "test:fase4": "node --env-file=.env scripts/smoke-test-fase4.js",
     "db:dump": "supabase db dump --remote --schema public -f schema.sql"
   },
   "keywords": [],
@@ -19,6 +20,7 @@
     "otplib": "^13.6.0",
     "pg": "^8.23.1",
     "qrcode": "^1.5.4",
-    "socket.io": "^4.8.4"
+    "socket.io": "^4.8.4",
+    "socket.io-client": "^4.8.4"
   }
 }

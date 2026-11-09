@@ -1,4 +1,9 @@
 import { pool } from '../config/db.js';
+import {
+    notificarIncidenteCreado,
+    notificarCambioEstado,
+    notificarConfirmacion
+} from './socket.service.js';
 
 const ESTADOS_VALIDOS = ['REGISTRADO', 'EVALUACION', 'REPARACION', 'RESUELTO', 'DESESTIMADO'];
 const SEVERIDADES_VALIDAS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
@@ -288,6 +293,7 @@ export const crearIncidente = async (datos, usuarioId) => {
         );
 
         await client.query('COMMIT');
+        notificarIncidenteCreado(incidenteCreado);
         return incidenteCreado;
     } catch (error) {
         await client.query('ROLLBACK');
@@ -369,6 +375,12 @@ export const cambiarEstado = async (incidenteId, { nuevoEstado, motivoDesestimac
         );
 
         await client.query('COMMIT');
+        notificarCambioEstado({
+            incidenteId,
+            entidadId: actualizados[0].entidad_asignada_id,
+            nuevoEstado,
+            historial: nuevoHistorial[0]
+        });
         return {
             ...actualizados[0],
             historial: nuevoHistorial[0]
@@ -384,7 +396,7 @@ export const cambiarEstado = async (incidenteId, { nuevoEstado, motivoDesestimac
 export const confirmarIncidente = async (incidenteId, usuarioId, fotoAdicionalUrl = null) => {
     // 1. Verificar existencia del incidente
     const { rows: incidentes } = await pool.query(
-        `SELECT id, usuario_creador_id, confirmaciones_count, estado 
+        `SELECT id, entidad_asignada_id, usuario_creador_id, confirmaciones_count, estado 
          FROM incidentes 
          WHERE id = $1`,
         [incidenteId]
@@ -419,9 +431,17 @@ export const confirmarIncidente = async (incidenteId, usuarioId, fotoAdicionalUr
             [incidenteId]
         );
 
+        const nuevoContador = conteoActualizado[0]?.confirmaciones_count;
+
+        notificarConfirmacion({
+            incidenteId,
+            entidadId: incidente.entidad_asignada_id,
+            nuevoContador
+        });
+
         return {
             confirmacion: confirmaciones[0],
-            confirmaciones_count: conteoActualizado[0]?.confirmaciones_count
+            confirmaciones_count: nuevoContador
         };
     } catch (error) {
         // Violación de restricción única uq_incidente_usuario

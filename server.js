@@ -1,9 +1,11 @@
+import http from 'http';
 import express from 'express';
 import cors from 'cors';
 import { pool } from './src/config/db.js';
 import authRoutes from './src/routes/auth.routes.js';
 import entidadesRoutes from './src/routes/entidades.routes.js';
 import incidentesRoutes from './src/routes/incidentes.routes.js';
+import { inicializarSocket } from './src/services/socket.service.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -29,11 +31,14 @@ app.get('/health', async (req, res) => {
     }
 });
 
+const serverHttp = http.createServer(app);
+const io = inicializarSocket(serverHttp);
+
 if (process.env.NODE_ENV !== 'test') {
-    app.listen(PORT, () => {
+    serverHttp.listen(PORT, () => {
         console.log(`Servidor HTTP activo en http://localhost:${PORT}`);
     });
 }
 
-export { app };
+export { app, serverHttp, io };
 export default app;
