@@ -97,7 +97,8 @@ export const iniciarSesion = async ({ email, password }) => {
             rol: usuario.rol,
             nombres: usuario.nombres,
             apellidos: usuario.apellidos,
-            entidad_id: usuario.entidad_id
+            entidad_id: usuario.entidad_id,
+            dos_pasos_activo: false
         }
     };
 };
@@ -227,7 +228,8 @@ export const verificar2FA = async (usuarioId, codigo) => {
             rol: usuario.rol,
             nombres: usuario.nombres,
             apellidos: usuario.apellidos,
-            entidad_id: usuario.entidad_id
+            entidad_id: usuario.entidad_id,
+            dos_pasos_activo: true
         }
     };
 };
