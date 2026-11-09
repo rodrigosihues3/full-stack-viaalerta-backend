@@ -251,12 +251,13 @@ export const consultarDniEnReniec = async (dni) => {
         }
 
         const data = await response.json();
-        // Normalizar respuesta según esquema de Decolecta
-        const nombres = data.nombres || data.first_name || '';
-        const apellidoPaterno = data.apellido_paterno || data.first_surname || '';
-        const apellidoMaterno = data.apellido_materno || data.second_surname || '';
+
+        // Esquema oficial Decolecta: first_name, first_last_name, second_last_name, full_name
+        const nombres = data.first_name || data.nombres || '';
+        const apellidoPaterno = data.first_last_name || data.apellido_paterno || '';
+        const apellidoMaterno = data.second_last_name || data.apellido_materno || '';
         const apellidos = `${apellidoPaterno} ${apellidoMaterno}`.trim();
-        const nombreCompleto = `${nombres} ${apellidos}`.trim();
+        const nombreCompleto = data.full_name || `${nombres} ${apellidos}`.trim();
 
         if (!nombreCompleto) return null;
 
