@@ -6,8 +6,20 @@ let io = null;
 export const inicializarSocket = (serverHttp) => {
     io = new Server(serverHttp, {
         cors: {
-            origin: process.env.CLIENT_URL || '*',
-            methods: ['GET', 'POST']
+            origin: (origin, callback) => {
+                if (
+                    !origin ||
+                    /^http:\/\/localhost:\d+$/.test(origin) ||
+                    /^http:\/\/127\.0\.0\.1:\d+$/.test(origin) ||
+                    origin.endsWith('.vercel.app') ||
+                    origin === process.env.CLIENT_URL
+                ) {
+                    return callback(null, true);
+                }
+                return callback(new Error(`Bloqueado por CORS en WebSockets: ${origin}`));
+            },
+            methods: ['GET', 'POST'],
+            credentials: true
         }
     });
 
@@ -92,4 +104,3 @@ export const notificarConfirmacion = ({ incidenteId, entidadId, nuevoContador })
         nuevoContador
     });
 };
-

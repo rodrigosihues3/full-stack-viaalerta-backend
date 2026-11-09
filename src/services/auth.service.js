@@ -46,11 +46,12 @@ export const iniciarSesion = async ({ email, password }) => {
         throw crearError('Correo y contraseña son requeridos', 400);
     }
 
+    const identificador = email.trim().toLowerCase();
     const { rows } = await pool.query(
         `SELECT id, entidad_id, rol, dni, email, password_hash, nombres, apellidos, dos_pasos_activo, activo 
          FROM usuarios 
-         WHERE email = $1`,
-        [email.trim().toLowerCase()]
+         WHERE LOWER(email) = $1 OR dni = $2`,
+        [identificador, email.trim()]
     );
 
     const usuario = rows[0];
@@ -95,6 +96,7 @@ export const iniciarSesion = async ({ email, password }) => {
             email: usuario.email,
             rol: usuario.rol,
             nombres: usuario.nombres,
+            apellidos: usuario.apellidos,
             entidad_id: usuario.entidad_id
         }
     };
@@ -177,7 +179,7 @@ export const activar2FA = async (usuarioId, codigo) => {
 
 export const verificar2FA = async (usuarioId, codigo) => {
     const { rows } = await pool.query(
-        `SELECT id, email, rol, entidad_id, secreto_2fa, dos_pasos_activo, activo 
+        `SELECT id, email, rol, entidad_id, nombres, apellidos, secreto_2fa, dos_pasos_activo, activo 
          FROM usuarios 
          WHERE id = $1`,
         [usuarioId]
@@ -218,7 +220,15 @@ export const verificar2FA = async (usuarioId, codigo) => {
                 etapa: 'completa'
             },
             '8h'
-        )
+        ),
+        user: {
+            id: usuario.id,
+            email: usuario.email,
+            rol: usuario.rol,
+            nombres: usuario.nombres,
+            apellidos: usuario.apellidos,
+            entidad_id: usuario.entidad_id
+        }
     };
 };
 

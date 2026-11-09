@@ -10,7 +10,25 @@ import { inicializarSocket } from './src/services/socket.service.js';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors({ origin: process.env.CLIENT_URL || '*' }));
+const corsOptions = {
+    origin: (origin, callback) => {
+        if (
+            !origin ||
+            /^http:\/\/localhost:\d+$/.test(origin) ||
+            /^http:\/\/127\.0\.0\.1:\d+$/.test(origin) ||
+            origin.endsWith('.vercel.app') ||
+            origin === process.env.CLIENT_URL
+        ) {
+            return callback(null, true);
+        }
+        return callback(new Error(`Bloqueado por CORS: ${origin}`));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Rutas de autenticación
