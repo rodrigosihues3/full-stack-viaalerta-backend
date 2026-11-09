@@ -67,3 +67,23 @@ export const perfil = async (req, res) => {
     }
 };
 
+export const consultarDni = async (req, res) => {
+    try {
+        const { dni } = req.params;
+        if (!/^\d{8}$/.test(dni)) {
+            return res.status(400).json({ error: 'El DNI debe tener 8 dígitos numéricos' });
+        }
+
+        const resultado = await authService.consultarDniEnReniec(dni);
+        if (!resultado) {
+            return res.status(404).json({ error: 'No se encontraron datos para el DNI ingresado' });
+        }
+
+        return res.json(resultado);
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        return res.status(statusCode).json({ error: error.message });
+    }
+};
+
+

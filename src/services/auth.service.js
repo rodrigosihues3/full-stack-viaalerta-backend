@@ -234,3 +234,42 @@ export const verificar2FA = async (usuarioId, codigo) => {
     };
 };
 
+export const consultarDniEnReniec = async (dni) => {
+    const token = process.env.DECOLECTA_TOKEN || '';
+    const url = `https://api.decolecta.com/v1/reniec/dni?numero=${dni}`;
+
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            return null;
+        }
+
+        const data = await response.json();
+        // Normalizar respuesta según esquema de Decolecta
+        const nombres = data.nombres || data.first_name || '';
+        const apellidoPaterno = data.apellido_paterno || data.first_surname || '';
+        const apellidoMaterno = data.apellido_materno || data.second_surname || '';
+        const apellidos = `${apellidoPaterno} ${apellidoMaterno}`.trim();
+        const nombreCompleto = `${nombres} ${apellidos}`.trim();
+
+        if (!nombreCompleto) return null;
+
+        return {
+            dni,
+            nombres,
+            apellidos,
+            nombreCompleto
+        };
+    } catch (error) {
+        console.error('Error al consultar servicio externo de DNI:', error.message);
+        return null;
+    }
+};
+
+
