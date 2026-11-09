@@ -201,6 +201,20 @@ CREATE TABLE IF NOT EXISTS "public"."usuarios" (
 ALTER TABLE "public"."usuarios" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."notificaciones_usuario" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "usuario_id" "uuid" NOT NULL,
+    "titulo" character varying(120) NOT NULL,
+    "mensaje" "text" NOT NULL,
+    "tipo" character varying(50) DEFAULT 'ADVERTENCIA'::character varying,
+    "leido" boolean DEFAULT false,
+    "creado_en" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."notificaciones_usuario" OWNER TO "postgres";
+
+
 ALTER TABLE ONLY "public"."categorias_incidentes"
     ADD CONSTRAINT "categorias_incidentes_pkey" PRIMARY KEY ("id");
 
@@ -261,6 +275,11 @@ ALTER TABLE ONLY "public"."usuarios"
 
 
 
+ALTER TABLE ONLY "public"."notificaciones_usuario"
+    ADD CONSTRAINT "notificaciones_usuario_pkey" PRIMARY KEY ("id");
+
+
+
 CREATE INDEX "idx_incidentes_coordenadas" ON "public"."incidentes" USING "btree" ("latitud", "longitud");
 
 
@@ -270,6 +289,10 @@ CREATE INDEX "idx_incidentes_entidad_estado" ON "public"."incidentes" USING "btr
 
 
 CREATE INDEX "idx_incidentes_usuario" ON "public"."incidentes" USING "btree" ("usuario_creador_id");
+
+
+
+CREATE INDEX "idx_notif_usuario" ON "public"."notificaciones_usuario" USING "btree" ("usuario_id");
 
 
 
@@ -335,6 +358,11 @@ ALTER TABLE ONLY "public"."usuarios"
 
 
 
+ALTER TABLE ONLY "public"."notificaciones_usuario"
+    ADD CONSTRAINT "notificaciones_usuario_usuario_id_fkey" FOREIGN KEY ("usuario_id") REFERENCES "public"."usuarios"("id") ON DELETE CASCADE;
+
+
+
 GRANT USAGE ON SCHEMA "public" TO "postgres";
 GRANT USAGE ON SCHEMA "public" TO "anon";
 GRANT USAGE ON SCHEMA "public" TO "authenticated";
@@ -387,6 +415,12 @@ GRANT ALL ON TABLE "public"."incidentes" TO "service_role";
 GRANT ALL ON TABLE "public"."usuarios" TO "anon";
 GRANT ALL ON TABLE "public"."usuarios" TO "authenticated";
 GRANT ALL ON TABLE "public"."usuarios" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."notificaciones_usuario" TO "anon";
+GRANT ALL ON TABLE "public"."notificaciones_usuario" TO "authenticated";
+GRANT ALL ON TABLE "public"."notificaciones_usuario" TO "service_role";
 
 
 

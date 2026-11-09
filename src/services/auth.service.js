@@ -273,4 +273,22 @@ export const consultarDniEnReniec = async (dni) => {
     }
 };
 
+export const desactivar2FA = async (usuarioId) => {
+    const { rowCount } = await pool.query(
+        `UPDATE usuarios
+         SET dos_pasos_activo = FALSE,
+             secreto_2fa = NULL,
+             secreto_2fa_pendiente = NULL
+         WHERE id = $1`,
+        [usuarioId]
+    );
+
+    if (rowCount === 0) {
+        throw crearError('Usuario no encontrado', 404);
+    }
+
+    return { mensaje: '2FA desactivado correctamente', dos_pasos_activo: false };
+};
+
+
 

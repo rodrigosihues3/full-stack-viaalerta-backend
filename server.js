@@ -5,6 +5,10 @@ import { pool } from './src/config/db.js';
 import authRoutes from './src/routes/auth.routes.js';
 import entidadesRoutes from './src/routes/entidades.routes.js';
 import incidentesRoutes from './src/routes/incidentes.routes.js';
+import adminRoutes from './src/routes/admin.routes.js';
+import usuariosRoutes from './src/routes/usuarios.routes.js';
+import { authMiddleware } from './src/middlewares/auth.middleware.js';
+import { roleMiddleware } from './src/middlewares/role.middleware.js';
 import { inicializarSocket } from './src/services/socket.service.js';
 
 const app = express();
@@ -33,6 +37,12 @@ app.use(express.json());
 
 // Rutas de autenticación
 app.use('/api/auth', authRoutes);
+
+// Rutas de administración y gobernanza metropolitana (SUPER_ADMIN)
+app.use('/api/admin', authMiddleware, roleMiddleware(['SUPER_ADMIN']), adminRoutes);
+
+// Rutas de usuarios y portal ciudadano
+app.use('/api/usuarios', usuariosRoutes);
 
 // Rutas de entidades y catálogo
 app.use('/api/entidades', entidadesRoutes);

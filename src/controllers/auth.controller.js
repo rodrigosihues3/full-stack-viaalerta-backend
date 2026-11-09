@@ -58,6 +58,16 @@ export const verificar2FA = async (req, res) => {
     }
 };
 
+export const desactivar2FA = async (req, res) => {
+    try {
+        const resultado = await authService.desactivar2FA(req.usuario.id);
+        return res.status(200).json(resultado);
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        return res.status(statusCode).json({ error: error.message });
+    }
+};
+
 export const perfil = async (req, res) => {
     try {
         return res.status(200).json({ user: req.usuario });

@@ -41,3 +41,5 @@ export const exigirToken = (etapaRequerida) => {
     };
 };
 
+export const authMiddleware = exigirToken('completa');
+
