@@ -41,7 +41,8 @@ app.use('/api/auth', authRoutes);
 // Rutas de administración y gobernanza metropolitana (SUPER_ADMIN)
 app.use('/api/admin', authMiddleware, roleMiddleware(['SUPER_ADMIN']), adminRoutes);
 
-// Rutas de usuarios y portal ciudadano
+// Rutas de notificaciones y usuarios
+app.use('/api/notificaciones', usuariosRoutes);
 app.use('/api/usuarios', usuariosRoutes);
 
 // Rutas de entidades y catálogo
@@ -61,6 +62,7 @@ app.get('/health', async (req, res) => {
 
 const serverHttp = http.createServer(app);
 const io = inicializarSocket(serverHttp);
+app.set('io', io);
 
 if (process.env.NODE_ENV !== 'test') {
     serverHttp.listen(PORT, () => {

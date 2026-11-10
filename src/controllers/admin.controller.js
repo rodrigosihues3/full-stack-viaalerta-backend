@@ -36,7 +36,8 @@ export const cambiarEstadoUsuario = async (req, res) => {
 export const notificarUsuario = async (req, res) => {
     try {
         const { id } = req.params;
-        const notificacion = await adminService.notificarUsuario(id, req.body);
+        const io = req.app?.get ? req.app.get('io') : null;
+        const notificacion = await adminService.notificarUsuario(id, req.body, io);
         return res.status(201).json(notificacion);
     } catch (error) {
         const statusCode = error.statusCode || 500;

@@ -10,6 +10,16 @@ export const listarIncidentes = async (req, res) => {
     }
 };
 
+export const obtenerCercanos = async (req, res) => {
+    try {
+        const incidentes = await incidentesService.obtenerIncidentesCercanos(req.query, req.usuario);
+        return res.status(200).json(incidentes);
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        return res.status(statusCode).json({ error: error.message });
+    }
+};
+
 export const obtenerIncidente = async (req, res) => {
     try {
         const { id } = req.params;
@@ -20,6 +30,8 @@ export const obtenerIncidente = async (req, res) => {
         return res.status(statusCode).json({ error: error.message });
     }
 };
+
+export const obtenerPorId = obtenerIncidente;
 
 export const crearIncidente = async (req, res) => {
     try {

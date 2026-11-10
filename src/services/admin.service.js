@@ -1,4 +1,5 @@
 import { pool } from '../config/db.js';
+import { notificarNuevaNotificacion } from './socket.service.js';
 
 const crearError = (mensaje, statusCode = 400) => {
     const error = new Error(mensaje);
@@ -142,7 +143,7 @@ export const cambiarEstadoUsuario = async (adminId, usuarioId, activo) => {
 /**
  * Emite una notificación institucional a un usuario.
  */
-export const notificarUsuario = async (usuarioId, { titulo, mensaje, tipo }) => {
+export const notificarUsuario = async (usuarioId, { titulo, mensaje, tipo, severidad }, ioInstance = null) => {
     if (!titulo || !String(titulo).trim()) {
         throw crearError('El título de la notificación es obligatorio', 400);
     }
@@ -165,7 +166,15 @@ export const notificarUsuario = async (usuarioId, { titulo, mensaje, tipo }) => 
         [usuarioId, String(titulo).trim(), String(mensaje).trim(), tipoVal]
     );
 
-    return rows[0];
+    const notificacionCreada = rows[0];
+    if (severidad) {
+        notificacionCreada.severidad = severidad;
+    }
+
+    // Emisión en tiempo real vía WebSocket a la sala personal del usuario destinatario
+    notificarNuevaNotificacion(usuarioId, notificacionCreada, ioInstance);
+
+    return notificacionCreada;
 };
 
 /**
@@ -199,5 +208,20 @@ export const marcarNotificacionLeida = async (usuarioId, notificacionId) => {
     }
 
     return rows[0];
+};
+
+/**
+ * Marca todas las notificaciones de un usuario como leídas.
+ */
+export const marcarTodasNotificacionesLeidas = async (usuarioId) => {
+    const { rows } = await pool.query(
+        `UPDATE notificaciones_usuario
+         SET leido = TRUE
+         WHERE usuario_id = $1 AND leido = FALSE
+         RETURNING id, usuario_id, titulo, mensaje, tipo, leido, creado_en`,
+        [usuarioId]
+    );
+
+    return { actualizadas: rows.length };
 };
 

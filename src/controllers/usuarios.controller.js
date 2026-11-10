@@ -21,3 +21,13 @@ export const marcarNotificacionLeida = async (req, res) => {
     }
 };
 
+export const marcarTodasLeidas = async (req, res) => {
+    try {
+        const resultado = await adminService.marcarTodasNotificacionesLeidas(req.usuario.id);
+        return res.status(200).json(resultado);
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        return res.status(statusCode).json({ error: error.message });
+    }
+};
+

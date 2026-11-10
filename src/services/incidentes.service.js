@@ -452,3 +452,91 @@ export const confirmarIncidente = async (incidenteId, usuarioId, fotoAdicionalUr
     }
 };
 
+/**
+ * Obtiene incidentes cercanos a un punto geográfico o lista incidentes visibles si no hay coordenadas.
+ */
+export const obtenerIncidentesCercanos = async (filtros = {}, usuario) => {
+    const { latitud, longitud, lat, lng, radio, radio_km } = filtros;
+    const centroLat = parseFloat(latitud !== undefined ? latitud : lat);
+    const centroLng = parseFloat(longitud !== undefined ? longitud : lng);
+
+    let radioKm = parseFloat(radio_km !== undefined ? radio_km : radio);
+    if (isNaN(radioKm) || radioKm <= 0) {
+        radioKm = 5; // Radio por defecto de 5 km
+    } else if (radioKm > 100) {
+        radioKm = radioKm / 1000;
+    }
+
+    if (isNaN(centroLat) || isNaN(centroLng)) {
+        return listarIncidentes(usuario);
+    }
+
+    let query = `
+        SELECT 
+            i.id,
+            i.ticket_folio,
+            i.entidad_asignada_id,
+            ep.sigla AS entidad_sigla,
+            ep.nombre_oficial AS entidad_nombre,
+            i.usuario_creador_id,
+            uc.nombres AS creador_nombres,
+            uc.apellidos AS creador_apellidos,
+            i.categoria_id,
+            ci.nombre AS categoria_nombre,
+            ci.icono_identificador AS categoria_icono,
+            i.latitud,
+            i.longitud,
+            i.direccion_referencial,
+            i.distrito,
+            i.severidad,
+            i.estado,
+            i.observaciones_ciudadano,
+            i.foto_url,
+            i.ia_diagnostico,
+            i.ia_confianza,
+            i.ia_severidad,
+            i.ia_recomendacion,
+            i.motivo_desestimacion,
+            i.operador_resolucion_id,
+            uo.nombres AS operador_resolucion_nombres,
+            uo.apellidos AS operador_resolucion_apellidos,
+            i.confirmaciones_count,
+            i.creado_en,
+            i.actualizado_en,
+            (6371 * acos(
+                LEAST(1.0, GREATEST(-1.0, 
+                    cos(radians($1)) * cos(radians(i.latitud)) * cos(radians(i.longitud) - radians($2)) + 
+                    sin(radians($1)) * sin(radians(i.latitud))
+                ))
+            )) AS distancia_km
+        FROM incidentes i
+        INNER JOIN categorias_incidentes ci ON i.categoria_id = ci.id
+        INNER JOIN entidades_publicas ep ON i.entidad_asignada_id = ep.id
+        LEFT JOIN usuarios uc ON i.usuario_creador_id = uc.id
+        LEFT JOIN usuarios uo ON i.operador_resolucion_id = uo.id
+        WHERE (6371 * acos(
+            LEAST(1.0, GREATEST(-1.0, 
+                cos(radians($1)) * cos(radians(i.latitud)) * cos(radians(i.longitud) - radians($2)) + 
+                sin(radians($1)) * sin(radians(i.latitud))
+            ))
+        )) <= $3
+    `;
+
+    const params = [centroLat, centroLng, radioKm];
+
+    if (usuario && usuario.rol === 'OPERADOR_ENTIDAD') {
+        if (!usuario.entidad_id) {
+            throw crearError('El operador no tiene una entidad asignada', 403);
+        }
+        query += ` AND i.entidad_asignada_id = $4`;
+        params.push(usuario.entidad_id);
+    }
+
+    query += ` ORDER BY distancia_km ASC`;
+
+    const { rows } = await pool.query(query, params);
+    return rows;
+};
+
+export const obtenerCercanos = obtenerIncidentesCercanos;
+
