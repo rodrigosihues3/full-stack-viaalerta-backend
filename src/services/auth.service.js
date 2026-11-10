@@ -114,10 +114,6 @@ export const configurar2FA = async (usuarioId) => {
         throw crearError('Usuario no encontrado', 404);
     }
 
-    if (usuario.dos_pasos_activo === true) {
-        throw crearError('El 2FA ya está activo en esta cuenta', 409);
-    }
-
     const secreto = otplib.generateSecret();
     const uri = `otpauth://totp/ViaAlerta:${usuario.email}?secret=${secreto}&issuer=ViaAlerta`;
     const qr = await qrcode.toDataURL(uri);
@@ -273,19 +269,45 @@ export const consultarDniEnReniec = async (dni) => {
     }
 };
 
-export const desactivar2FA = async (usuarioId) => {
-    const { rowCount } = await pool.query(
-        `UPDATE usuarios
-         SET dos_pasos_activo = FALSE,
-             secreto_2fa = NULL,
-             secreto_2fa_pendiente = NULL
-         WHERE id = $1`,
+export const desactivar2FA = async (usuarioId, codigo) => {
+    const { rows } = await pool.query(
+        'SELECT id, secreto_2fa, dos_pasos_activo FROM usuarios WHERE id = $1',
         [usuarioId]
     );
 
-    if (rowCount === 0) {
+    const usuario = rows[0];
+    if (!usuario) {
         throw crearError('Usuario no encontrado', 404);
     }
+
+    if (!usuario.dos_pasos_activo || !usuario.secreto_2fa) {
+        throw crearError('El 2FA no está activo en esta cuenta', 400);
+    }
+
+    let esValido = false;
+    try {
+        const resultado = await otplib.verify({
+            secret: usuario.secreto_2fa,
+            token: String(codigo).trim(),
+            epochTolerance: 30
+        });
+        esValido = Boolean(resultado && (resultado === true || resultado.valid === true));
+    } catch {
+        esValido = false;
+    }
+
+    if (!esValido) {
+        throw crearError('Código de verificación incorrecto', 401);
+    }
+
+    await pool.query(
+        `UPDATE usuarios 
+         SET dos_pasos_activo = FALSE, 
+             secreto_2fa = NULL, 
+             secreto_2fa_pendiente = NULL 
+         WHERE id = $1`,
+        [usuarioId]
+    );
 
     return { mensaje: '2FA desactivado correctamente', dos_pasos_activo: false };
 };

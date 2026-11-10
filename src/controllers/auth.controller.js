@@ -60,7 +60,11 @@ export const verificar2FA = async (req, res) => {
 
 export const desactivar2FA = async (req, res) => {
     try {
-        const resultado = await authService.desactivar2FA(req.usuario.id);
+        const { codigo } = req.body;
+        if (!codigo || !/^\d{6}$/.test(String(codigo).trim())) {
+            return res.status(400).json({ error: 'El código de 6 dígitos es requerido' });
+        }
+        const resultado = await authService.desactivar2FA(req.usuario.id, String(codigo).trim());
         return res.status(200).json(resultado);
     } catch (error) {
         const statusCode = error.statusCode || 500;
