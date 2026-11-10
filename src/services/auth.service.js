@@ -93,6 +93,7 @@ export const iniciarSesion = async ({ email, password }) => {
         ),
         user: {
             id: usuario.id,
+            dni: usuario.dni ? String(usuario.dni).trim() : null,
             email: usuario.email,
             rol: usuario.rol,
             nombres: usuario.nombres,
@@ -180,7 +181,7 @@ export const activar2FA = async (usuarioId, codigo) => {
 
 export const verificar2FA = async (usuarioId, codigo) => {
     const { rows } = await pool.query(
-        `SELECT id, email, rol, entidad_id, nombres, apellidos, secreto_2fa, dos_pasos_activo, activo 
+        `SELECT id, dni, email, rol, entidad_id, nombres, apellidos, secreto_2fa, dos_pasos_activo, activo 
          FROM usuarios 
          WHERE id = $1`,
         [usuarioId]
@@ -224,6 +225,7 @@ export const verificar2FA = async (usuarioId, codigo) => {
         ),
         user: {
             id: usuario.id,
+            dni: usuario.dni ? String(usuario.dni).trim() : null,
             email: usuario.email,
             rol: usuario.rol,
             nombres: usuario.nombres,
@@ -253,11 +255,11 @@ export const consultarDniEnReniec = async (dni) => {
         const data = await response.json();
 
         // Esquema oficial Decolecta: first_name, first_last_name, second_last_name, full_name
-        const nombres = data.first_name || data.nombres || '';
-        const apellidoPaterno = data.first_last_name || data.apellido_paterno || '';
-        const apellidoMaterno = data.second_last_name || data.apellido_materno || '';
+        const nombres = (data.first_name || data.nombres || '').trim();
+        const apellidoPaterno = (data.first_last_name || data.apellido_paterno || '').trim();
+        const apellidoMaterno = (data.second_last_name || data.apellido_materno || '').trim();
         const apellidos = `${apellidoPaterno} ${apellidoMaterno}`.trim();
-        const nombreCompleto = data.full_name || `${nombres} ${apellidos}`.trim();
+        const nombreCompleto = `${nombres} ${apellidos}`.trim() || (data.full_name || '').trim();
 
         if (!nombreCompleto) return null;
 

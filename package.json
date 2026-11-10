@@ -8,6 +8,7 @@
     "dev": "node --watch --env-file=.env server.js",
     "test:fase3": "node --env-file=.env scripts/smoke-test-fase3.js",
     "test:fase4": "node --env-file=.env scripts/smoke-test-fase4.js",
+    "test:ciudadano": "node --env-file=.env scripts/smoke-test-modulo-ciudadano.js",
     "db:dump": "supabase db dump --remote --schema public -f schema.sql"
   },
   "keywords": [],

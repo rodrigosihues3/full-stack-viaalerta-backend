@@ -33,7 +33,10 @@ export const exigirToken = (etapaRequerida) => {
                 return res.status(401).json({ error: 'Usuario no encontrado o inactivo' });
             }
 
-            req.usuario = rows[0];
+            req.usuario = {
+                ...rows[0],
+                dni: rows[0].dni ? String(rows[0].dni).trim() : null
+            };
             next();
         } catch (error) {
             return res.status(500).json({ error: 'Error interno en la autenticación' });

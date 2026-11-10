@@ -4,6 +4,7 @@ import {
     notificarCambioEstado,
     notificarConfirmacion
 } from './socket.service.js';
+import { crearNotificacionIncidente } from './notificaciones.service.js';
 
 const ESTADOS_VALIDOS = ['REGISTRADO', 'EVALUACION', 'REPARACION', 'RESUELTO', 'DESESTIMADO'];
 const SEVERIDADES_VALIDAS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
@@ -84,6 +85,94 @@ export const listarIncidentes = async (usuario) => {
 
     const { rows } = await pool.query(query, params);
     return rows;
+};
+
+/**
+ * Consulta incidentes viales cercanos a las coordenadas del ciudadano
+ * empleando la fórmula geodésica de Haversine en PostgreSQL.
+ * Protege la privacidad omitiendo datos personales del creador del reporte.
+ */
+export const listarIncidentesCercanos = async ({ lat, lng, radio = 10, estado = null, categoriaId = null }, usuario) => {
+    const latNum = parseFloat(lat);
+    const lngNum = parseFloat(lng);
+
+    if (isNaN(latNum) || isNaN(lngNum) || latNum < -90 || latNum > 90 || lngNum < -180 || lngNum > 180) {
+        throw crearError('Debe proporcionar coordenadas de latitud y longitud válidas', 400);
+    }
+
+    const radioKm = Math.min(Math.max(parseFloat(radio) || 10, 0.5), 100);
+    const params = [latNum, lngNum, radioKm];
+    const filtros = [];
+
+    if (estado && estado !== 'TODOS' && ESTADOS_VALIDOS.includes(String(estado).toUpperCase())) {
+        params.push(String(estado).toUpperCase());
+        filtros.push(`sub.estado = $${params.length}`);
+    } else if (!estado) {
+        // Por defecto en el Monitor Vial priorizar incidentes no desestimados
+        filtros.push(`sub.estado <> 'DESESTIMADO'`);
+    }
+
+    if (categoriaId && categoriaId !== 'TODAS') {
+        params.push(String(categoriaId));
+        filtros.push(`sub.categoria_id = $${params.length}`);
+    }
+
+    const whereAdicional = filtros.length > 0 ? `AND ${filtros.join(' AND ')}` : '';
+
+    const query = `
+        SELECT *
+        FROM (
+            SELECT
+                i.id,
+                i.ticket_folio,
+                i.entidad_asignada_id,
+                ep.sigla AS entidad_sigla,
+                ep.nombre_oficial AS entidad_nombre,
+                i.categoria_id,
+                ci.nombre AS categoria_nombre,
+                ci.icono_identificador AS categoria_icono,
+                i.latitud,
+                i.longitud,
+                i.direccion_referencial,
+                i.distrito,
+                i.severidad,
+                i.estado,
+                i.observaciones_ciudadano,
+                i.foto_url,
+                i.confirmaciones_count,
+                i.creado_en,
+                i.actualizado_en,
+                i.usuario_creador_id,
+                ROUND(
+                    CAST(
+                        6371 * 2 * ASIN(
+                            SQRT(
+                                POWER(SIN(RADIANS(i.latitud - $1) / 2), 2) +
+                                COS(RADIANS($1)) * COS(RADIANS(i.latitud)) *
+                                POWER(SIN(RADIANS(i.longitud - $2) / 2), 2)
+                            )
+                        ) AS numeric
+                    ),
+                    2
+                )::double precision AS distancia_km
+            FROM incidentes i
+            INNER JOIN categorias_incidentes ci ON i.categoria_id = ci.id
+            INNER JOIN entidades_publicas ep ON i.entidad_asignada_id = ep.id
+            WHERE i.latitud IS NOT NULL AND i.longitud IS NOT NULL
+        ) sub
+        WHERE sub.distancia_km <= $3
+        ${whereAdicional}
+        ORDER BY sub.distancia_km ASC, sub.creado_en DESC
+        LIMIT 100
+    `;
+
+    const { rows } = await pool.query(query, params);
+
+    // Sanitizar respuesta para no exponer identidad ni usuario_creador_id de terceros
+    return rows.map(({ usuario_creador_id, ...publicData }) => ({
+        ...publicData,
+        es_mio: Boolean(usuario?.id && usuario_creador_id === usuario.id)
+    }));
 };
 
 export const obtenerIncidentePorId = async (id, usuario) => {
@@ -294,6 +383,20 @@ export const crearIncidente = async (datos, usuarioId) => {
 
         await client.query('COMMIT');
         notificarIncidenteCreado(incidenteCreado);
+
+        // Generar notificación persistente y en tiempo real para el ciudadano creador
+        try {
+            await crearNotificacionIncidente({
+                usuarioId,
+                incidenteId: incidenteCreado.id,
+                ticketFolio: incidenteCreado.ticket_folio,
+                estadoNuevo: 'REGISTRADO',
+                notaObservacion: 'Reporte ciudadano recibido correctamente'
+            });
+        } catch (notifErr) {
+            console.error('Advertencia al registrar notificación inicial:', notifErr.message);
+        }
+
         return incidenteCreado;
     } catch (error) {
         await client.query('ROLLBACK');
@@ -320,7 +423,7 @@ export const cambiarEstado = async (incidenteId, { nuevoEstado, motivoDesestimac
 
         // Obtener y bloquear incidente para garantizar coherencia en concurrencia
         const { rows: incidentes } = await client.query(
-            `SELECT id, entidad_asignada_id, estado 
+            `SELECT id, ticket_folio, usuario_creador_id, entidad_asignada_id, estado 
              FROM incidentes 
              WHERE id = $1 
              FOR UPDATE`,
@@ -381,6 +484,23 @@ export const cambiarEstado = async (incidenteId, { nuevoEstado, motivoDesestimac
             nuevoEstado,
             historial: nuevoHistorial[0]
         });
+
+        // Generar notificación persistente y en tiempo real únicamente si el estado cambió realmente
+        if (incidenteActual.estado !== nuevoEstado && incidenteActual.usuario_creador_id) {
+            try {
+                await crearNotificacionIncidente({
+                    usuarioId: incidenteActual.usuario_creador_id,
+                    incidenteId,
+                    ticketFolio: incidenteActual.ticket_folio || actualizados[0].ticket_folio,
+                    estadoNuevo: nuevoEstado,
+                    notaObservacion: notaObservacion ? notaObservacion.trim() : null,
+                    motivoDesestimacion: motivoFinal
+                });
+            } catch (notifErr) {
+                console.error('Advertencia al generar notificación de cambio de estado:', notifErr.message);
+            }
+        }
+
         return {
             ...actualizados[0],
             historial: nuevoHistorial[0]

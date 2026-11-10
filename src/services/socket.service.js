@@ -62,6 +62,11 @@ export const inicializarSocket = (serverHttp) => {
     // Manejo de Conexiones y Salas (Rooms)
     io.on('connection', (socket) => {
         const usuario = socket.usuario;
+        const usuarioId = usuario?.sub || usuario?.id;
+
+        if (usuarioId) {
+            socket.join(`usuario:${usuarioId}`);
+        }
 
         if (usuario?.rol === 'OPERADOR_ENTIDAD' && usuario.entidad_id) {
             socket.join(`entidad:${usuario.entidad_id}`);
@@ -69,6 +74,10 @@ export const inicializarSocket = (serverHttp) => {
 
         if (usuario?.rol === 'SUPER_ADMIN') {
             socket.join('admin:global');
+        }
+
+        if (usuario?.rol === 'CIUDADANO') {
+            socket.join('ciudadanos:global');
         }
 
         socket.join('incidentes:general');
@@ -83,6 +92,7 @@ export const notificarIncidenteCreado = (incidente) => {
     if (!io || !incidente) return;
     io.to(`entidad:${incidente.entidad_asignada_id}`)
       .to('admin:global')
+      .to('ciudadanos:global')
       .emit('incidente:creado', incidente);
 };
 
@@ -103,4 +113,9 @@ export const notificarConfirmacion = ({ incidenteId, entidadId, nuevoContador })
         entidadId,
         nuevoContador
     });
+};
+
+export const notificarUsuario = (usuarioId, notificacion) => {
+    if (!io || !usuarioId || !notificacion) return;
+    io.to(`usuario:${usuarioId}`).emit('notificacion:nueva', notificacion);
 };

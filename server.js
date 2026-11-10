@@ -5,6 +5,7 @@ import { pool } from './src/config/db.js';
 import authRoutes from './src/routes/auth.routes.js';
 import entidadesRoutes from './src/routes/entidades.routes.js';
 import incidentesRoutes from './src/routes/incidentes.routes.js';
+import notificacionesRoutes from './src/routes/notificaciones.routes.js';
 import { inicializarSocket } from './src/services/socket.service.js';
 
 const app = express();
@@ -39,6 +40,9 @@ app.use('/api/entidades', entidadesRoutes);
 
 // Rutas de incidentes
 app.use('/api/incidentes', incidentesRoutes);
+
+// Rutas de notificaciones ciudadanas
+app.use('/api/notificaciones', notificacionesRoutes);
 
 app.get('/health', async (req, res) => {
     try {
