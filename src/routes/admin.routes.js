@@ -1,11 +1,21 @@
 import { Router } from 'express';
 import * as adminController from '../controllers/admin.controller.js';
 import * as entidadesController from '../controllers/entidades.controller.js';
+import { exigirToken } from '../middlewares/auth.middleware.js';
+import { permitirRoles } from '../middlewares/role.middleware.js';
 
 const router = Router();
 
 // Métricas de gobernanza metropolitana
 router.get('/metricas', adminController.obtenerMetricas);
+
+// Aprovisionamiento de operadores técnicos
+router.post(
+    '/operadores',
+    exigirToken('completa'),
+    permitirRoles('SUPER_ADMIN'),
+    adminController.crearOperador
+);
 
 // Gestión y auditoría de usuarios
 router.get('/usuarios', adminController.listarUsuarios);

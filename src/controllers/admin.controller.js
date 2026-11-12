@@ -45,3 +45,19 @@ export const notificarUsuario = async (req, res) => {
     }
 };
 
+export const crearOperador = async (req, res) => {
+    try {
+        const nuevoOperador = await adminService.crearOperadorInstitucional(req.body);
+        return res.status(201).json(nuevoOperador);
+    } catch (error) {
+        if (error.code === '23505') {
+            return res.status(409).json({
+                error: 'El correo electrónico o DNI ya se encuentra registrado en el sistema.'
+            });
+        }
+        const statusCode = error.statusCode || 500;
+        return res.status(statusCode).json({ error: error.message });
+    }
+};
+
+

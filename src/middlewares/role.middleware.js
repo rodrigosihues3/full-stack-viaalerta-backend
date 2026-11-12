@@ -9,5 +9,6 @@ export const exigirRol = (...rolesPermitidos) => {
 };
 
 export const roleMiddleware = exigirRol;
+export const permitirRoles = exigirRol;
 
 

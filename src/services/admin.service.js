@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs';
 import { pool } from '../config/db.js';
 import { notificarNuevaNotificacion } from './socket.service.js';
 
@@ -224,4 +225,77 @@ export const marcarTodasNotificacionesLeidas = async (usuarioId) => {
 
     return { actualizadas: rows.length };
 };
+
+/**
+ * Aprovisiona un nuevo operador técnico institucional adscrito a una entidad pública.
+ */
+export const crearOperadorInstitucional = async (datos) => {
+    const { nombres, apellidos, dni, email, password, entidad_id } = datos || {};
+
+    // 1. Validar campos obligatorios
+    if (!nombres || !apellidos || !dni || !email || !password || !entidad_id) {
+        throw crearError('Todos los campos son obligatorios: nombres, apellidos, dni, email, password y entidad_id', 400);
+    }
+
+    const nombresTrim = String(nombres).trim();
+    const apellidosTrim = String(apellidos).trim();
+    const emailTrim = String(email).trim().toLowerCase();
+    const dniTrim = String(dni).trim();
+    const passwordVal = String(password);
+
+    if (!nombresTrim || !apellidosTrim || !dniTrim || !emailTrim || !passwordVal) {
+        throw crearError('Los campos no pueden estar vacíos', 400);
+    }
+
+    const dniRegex = /^[0-9]{8}$/;
+    if (!dniRegex.test(dniTrim)) {
+        throw crearError('El DNI debe contener exactamente 8 dígitos numéricos', 400);
+    }
+
+    // 2. Verificar en PostgreSQL que entidad_id exista y esté activa
+    const { rows: entidadRows } = await pool.query(
+        'SELECT id, sigla, nombre_oficial, activa FROM entidades_publicas WHERE id = $1',
+        [entidad_id]
+    );
+
+    if (entidadRows.length === 0) {
+        throw crearError('La entidad pública especificada no existe.', 404);
+    }
+
+    const entidad = entidadRows[0];
+    if (!entidad.activa) {
+        throw crearError('La entidad pública especificada no se encuentra activa.', 400);
+    }
+
+    // 3. Hashear la contraseña temporal
+    const passwordHash = await bcrypt.hash(passwordVal, 10);
+
+    // 4. Ejecutar el INSERT INTO usuarios fijando explícitamente rol, entidad_id, activo y dos_pasos_activo
+    const { rows: usuarioRows } = await pool.query(
+        `INSERT INTO usuarios (
+            nombres,
+            apellidos,
+            dni,
+            email,
+            password_hash,
+            entidad_id,
+            rol,
+            activo,
+            dos_pasos_activo
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, 'OPERADOR_ENTIDAD', TRUE, FALSE)
+        RETURNING id, dni, email, nombres, apellidos, rol, entidad_id, activo, dos_pasos_activo, creado_en, actualizado_en`,
+        [nombresTrim, apellidosTrim, dniTrim, emailTrim, passwordHash, entidad_id]
+    );
+
+    const nuevoOperador = usuarioRows[0];
+
+    // 5. Retornar los datos del operador creado junto con el nombre/sigla de su entidad adscrita
+    return {
+        ...nuevoOperador,
+        entidad_nombre: entidad.nombre_oficial,
+        entidad_sigla: entidad.sigla
+    };
+};
+
 
